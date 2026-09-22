@@ -18,7 +18,9 @@ class MQTTClient:
         # sem si GUI napoji funkci, ktera se zavola pri prijeti zpravy
         self.on_message_received: Optional[Callable[[str, bytes], None]] = None
 
-        self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,client_id=f"ultrachatapp-{identity}"        )
+        # client_id musi byt shodne s identitou - ACL na serveru pravdepodobne
+        # povoluje zapis jen na topic odpovidajici client_id (%c v mosquitto ACL)
+        self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=identity)
         self._client.username_pw_set(username, password)
 
 
@@ -32,6 +34,7 @@ class MQTTClient:
 
         self._client.on_connect = self._handle_connect
         self._client.on_message = self._handle_message
+        self._client.on_publish = self._handle_publish
 
 
 
@@ -43,13 +46,20 @@ class MQTTClient:
         self._client.loop_start()
 
     def disconnect(self) -> None:
-        # korektni odhlaseni - rucne posleme "offline" (retained)
-        self._client.publish(
+        # korektni odhlaseni - rucne posleme "offline" (retained) a pockame,
+        # az se opravdu odesle - jinak muze loop_stop() vlakno zastavit driv,
+        # nez publish stihne odejit, a offline status se nikdy nedoruci
+        info = self._client.publish(
             topics.status_node(self.identity),
             payload=topics.STATUS_OFFLINE,
             qos=1,
             retain=True,
         )
+        try:
+            info.wait_for_publish(timeout=2)
+        except (RuntimeError, ValueError):
+            pass
+
         self._client.loop_stop()
         self._client.disconnect()
 
@@ -67,6 +77,8 @@ class MQTTClient:
         client.subscribe(topics.SUBSCRIBE_ALL, qos=1)
         client.subscribe(topics.SUBSCRIBE_STATUS, qos=1)
         client.subscribe(topics.subscribe_private(self.identity), qos=1)
+        print(f"[DEBUG] {self.identity}: subscribed na {topics.SUBSCRIBE_ALL}, "
+              f"{topics.SUBSCRIBE_STATUS}, {topics.subscribe_private(self.identity)}")
 
         # pošlem že jsem online
         client.publish(
@@ -78,8 +90,12 @@ class MQTTClient:
         print(" Připojeno k serveru :)")
 
     def _handle_message(self, client, userdata, msg):
+        print(f"[DEBUG] {self.identity}: prijato na '{msg.topic}' -> {msg.payload!r}")
         if self.on_message_received:
             self.on_message_received(msg.topic, msg.payload)
+
+    def _handle_publish(self, client, userdata, mid, reason_code=None, properties=None):
+        print(f"[DEBUG] {self.identity}: broker potvrdil publish mid={mid} rc={reason_code}")
 
 
 
@@ -87,10 +103,12 @@ class MQTTClient:
 
     def send_public(self, text: str) -> None:
         payload = ChatMessage.new(text).encode()
-        self._client.publish(topics.publish_to_all(self.identity), payload, qos=1)
+        topic = topics.publish_to_all(self.identity)
+        info = self._client.publish(topic, payload, qos=1)
+        print(f"[DEBUG] {self.identity}: publish na '{topic}' rc={info.rc} mid={info.mid}")
 
     def send_private(self, recipient: str, text: str) -> None:
         payload = ChatMessage.new(text).encode()
-        self._client.publish(
-            topics.publish_to_private(recipient, self.identity), payload, qos=1
-        )
+        topic = topics.publish_to_private(recipient, self.identity)
+        info = self._client.publish(topic, payload, qos=1)
+        print(f"[DEBUG] {self.identity}: publish na '{topic}' rc={info.rc} mid={info.mid}")

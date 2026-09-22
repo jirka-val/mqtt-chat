@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-ROOT = "mschat"
+ROOT = "/mschat"
 
 SUBSCRIBE_ALL = f"{ROOT}/all/#"
 SUBSCRIBE_ALL_ANON = f"{ROOT}/all/anon"
