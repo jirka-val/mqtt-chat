@@ -1,0 +1,17 @@
+# ACL pro lokalni mosquitto broker
+# %u = prihlasovaci jmeno klienta (z passwd), tj. jeho identita v chatu
+
+# agent vidi a zapisuje vsechno - preposila mezi klienty a hlavnim brokerem
+user VAL0475-agent
+topic readwrite #
+
+
+# pravidla pro vsechny ostatni uzivatele (pattern plati pro kazdeho)
+
+# zapis jen pod svou identitou - nikdo se nemuze vydavat za nekoho jineho
+pattern write /mschat/all/%u
+pattern write /mschat/user/+/%u
+pattern write /mschat/status/%u
+
+# cteni jen ze sve schranky, kam mu agent preposila zpravy
+pattern read /inbox/%u/#

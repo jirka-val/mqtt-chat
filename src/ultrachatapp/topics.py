@@ -55,6 +55,28 @@ def publish_to_private(id_reciever: str, id_sender: str) -> str:
     return f"{ROOT}/user/{id_reciever}/{id_sender}"
 
 
+#       Inbox u agenta (cviko 2)
+#
+#   Klient pripojeny pres agenta necte /mschat/... primo, ale jen svou
+#   "schranku" /inbox/id_uzivatele/... - agent do ni preposila zpravy
+#   z hlavniho brokeru a pripoji pred puvodni topic tenhle prefix:
+#       /mschat/all/pepa  ->  /inbox/jirka/mschat/all/pepa
+
+INBOX_ROOT = "/inbox"
+
+def subscribe_inbox (id_user: str) -> str:
+    """Uzel ze ktereho klient pres agenta dostava vsechno"""
+    return f"{INBOX_ROOT}/{id_user}/#"
+
+def inbox_node (id_user: str, original_topic: str) -> str:
+    """Kam agent prepise zpravu z hlavniho brokeru pro daneho uzivatele"""
+    return f"{INBOX_ROOT}/{id_user}{original_topic}"
+
+def strip_inbox (id_user: str, topic: str) -> str:
+    """Opak inbox_node - z /inbox/jirka/mschat/... udela zpet /mschat/..."""
+    return topic[len(f"{INBOX_ROOT}/{id_user}"):]
+
+
 #       Pomocna funkce pro prichozi zpravy
 
 def parse_topic (topic: str) -> tuple[str, ...]:

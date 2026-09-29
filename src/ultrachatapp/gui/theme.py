@@ -75,6 +75,19 @@ QLabel#fieldLabel {{ color: {MUTED}; font-size: 9pt; }}
 QLabel#muted {{ color: {MUTED}; font-size: 9pt; }}
 QLabel#error {{ color: {ERROR}; }}
 
+QCheckBox {{ color: {MUTED}; font-size: 9pt; spacing: 8px; }}
+QCheckBox::indicator {{
+    width: 14px;
+    height: 14px;
+    border: 1px solid {BORDER};
+    border-radius: 4px;
+    background-color: {PANEL_ALT};
+}}
+QCheckBox::indicator:checked {{
+    background-color: {ACCENT};
+    border: 1px solid {ACCENT};
+}}
+
 QFrame#loginCard {{
     background-color: {PANEL};
     border-radius: 22px;

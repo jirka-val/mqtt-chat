@@ -10,10 +10,15 @@ from .message import ChatMessage
 
 
 class MQTTClient:
-    def __init__(self, host: str, port: int, identity: str, username: str, password: str):
+    def __init__(self, host: str, port: int, identity: str, username: str, password: str,
+                 via_agent: bool = False):
         self.host = host
         self.port = port
         self.identity = identity
+
+        # pres agenta (cviko 2) - pripojujeme se na lokalni mosquitto a zpravy
+        # cteme jen ze sveho inboxu, kam je agent preposila z hlavniho brokeru
+        self.via_agent = via_agent
 
         # sem si GUI napoji funkci, ktera se zavola pri prijeti zpravy
         self.on_message_received: Optional[Callable[[str, bytes], None]] = None
@@ -73,12 +78,17 @@ class MQTTClient:
             print(f"Pripojeni selhalo, reason_code={reason_code}")
             return
 
-        # all chat, stav vsech uzivatelu a mych private msgs
-        client.subscribe(topics.SUBSCRIBE_ALL, qos=1)
-        client.subscribe(topics.SUBSCRIBE_STATUS, qos=1)
-        client.subscribe(topics.subscribe_private(self.identity), qos=1)
-        print(f"[DEBUG] {self.identity}: subscribed na {topics.SUBSCRIBE_ALL}, "
-              f"{topics.SUBSCRIBE_STATUS}, {topics.subscribe_private(self.identity)}")
+        if self.via_agent:
+            # agent nam posila vsechno (all, status, private) do jednoho inboxu
+            client.subscribe(topics.subscribe_inbox(self.identity), qos=1)
+            print(f"[DEBUG] {self.identity}: subscribed na {topics.subscribe_inbox(self.identity)}")
+        else:
+            # all chat, stav vsech uzivatelu a mych private msgs
+            client.subscribe(topics.SUBSCRIBE_ALL, qos=1)
+            client.subscribe(topics.SUBSCRIBE_STATUS, qos=1)
+            client.subscribe(topics.subscribe_private(self.identity), qos=1)
+            print(f"[DEBUG] {self.identity}: subscribed na {topics.SUBSCRIBE_ALL}, "
+                  f"{topics.SUBSCRIBE_STATUS}, {topics.subscribe_private(self.identity)}")
 
         # pošlem že jsem online
         client.publish(
@@ -91,8 +101,15 @@ class MQTTClient:
 
     def _handle_message(self, client, userdata, msg):
         print(f"[DEBUG] {self.identity}: prijato na '{msg.topic}' -> {msg.payload!r}")
+
+        # z /inbox/ja/mschat/all/pepa udelame zpet /mschat/all/pepa,
+        # GUI pak nepozna rozdil, jestli jedeme pres agenta nebo primo
+        topic = msg.topic
+        if self.via_agent:
+            topic = topics.strip_inbox(self.identity, topic)
+
         if self.on_message_received:
-            self.on_message_received(msg.topic, msg.payload)
+            self.on_message_received(topic, msg.payload)
 
     def _handle_publish(self, client, userdata, mid, reason_code=None, properties=None):
         print(f"[DEBUG] {self.identity}: broker potvrdil publish mid={mid} rc={reason_code}")

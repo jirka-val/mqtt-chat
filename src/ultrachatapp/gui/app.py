@@ -22,6 +22,10 @@ load_dotenv()
 DEFAULT_HOST = "pcfeib425t.vsb.cz"
 DEFAULT_PORT = 1883
 
+# lokalni mosquitto, u ktereho bezi agent (cviko 2)
+AGENT_HOST = "localhost"
+AGENT_PORT = 1884
+
 
 class ChatWindow(QMainWindow):
     def __init__(self):
@@ -51,6 +55,8 @@ class ChatWindow(QMainWindow):
             "port": DEFAULT_PORT,
             "username": os.getenv("MQTT_USERNAME", ""),
             "password": os.getenv("MQTT_PASSWORD", ""),
+            "agent_host": AGENT_HOST,
+            "agent_port": AGENT_PORT,
         }
         self.login_view = LoginView(defaults, self._on_login)
         self.stack.addWidget(self.login_view)
@@ -81,6 +87,7 @@ class ChatWindow(QMainWindow):
             identity=data.identity,
             username=data.username,
             password=data.password,
+            via_agent=data.via_agent,
         )
         client.on_message_received = self._on_mqtt_message
 

@@ -6,6 +6,7 @@ from typing import Callable
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -25,12 +26,14 @@ class LoginData:
     identity: str
     username: str
     password: str
+    via_agent: bool
 
 
 class LoginView(QWidget):
     def __init__(self, defaults: dict, on_submit: Callable[[LoginData], None]):
         super().__init__()
         self.on_submit = on_submit
+        self.defaults = defaults
 
         outer = QVBoxLayout(self)
         outer.addStretch(1)
@@ -67,6 +70,11 @@ class LoginView(QWidget):
             layout, "MQTT heslo", defaults.get("password", ""), secret=True
         )
 
+        # cviko 2 - pripojeni pres agenta na lokalnim mosquittu
+        self.agent_checkbox = QCheckBox("Pres agenta")
+        self.agent_checkbox.toggled.connect(self._toggle_agent)
+        layout.addWidget(self.agent_checkbox)
+
         self.error_label = QLabel("")
         self.error_label.setObjectName("error")
         self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -100,6 +108,20 @@ class LoginView(QWidget):
         layout.addWidget(entry)
         return entry
 
+    def _toggle_agent(self, checked: bool) -> None:
+        """Prepne host/port mezi hlavnim brokerem a lokalnim agentem.
+        U agenta je login zaroven identita (ACL na nem stoji), tak ho predvyplnime."""
+        if checked:
+            self.host_input.setText(self.defaults.get("agent_host", ""))
+            self.port_input.setText(str(self.defaults.get("agent_port", "")))
+            self.username_input.setText(self.identity_input.text().strip())
+            self.password_input.clear()
+        else:
+            self.host_input.setText(self.defaults.get("host", ""))
+            self.port_input.setText(str(self.defaults.get("port", "")))
+            self.username_input.setText(self.defaults.get("username", ""))
+            self.password_input.setText(self.defaults.get("password", ""))
+
     def show_error(self, text: str) -> None:
         self.error_label.setText(text)
 
@@ -122,5 +144,6 @@ class LoginView(QWidget):
                 identity=identity,
                 username=self.username_input.text().strip(),
                 password=self.password_input.text(),
+                via_agent=self.agent_checkbox.isChecked(),
             )
         )
