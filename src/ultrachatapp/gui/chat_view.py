@@ -46,10 +46,17 @@ class ChatView(QFrame):
         row.addWidget(title)
         row.addStretch(1)
 
-        who = QLabel(f"prihlasen jako {identity}")
-        who.setObjectName("muted")
-        row.addWidget(who)
+        self.identity = identity
+        self.who = QLabel(f"prihlasen jako {identity}")
+        self.who.setObjectName("muted")
+        row.addWidget(self.who)
         return row
+
+    def set_connection(self, connected: bool, queued: int) -> None:
+        if connected:
+            self.who.setText(f"{self.identity} - online")
+        else:
+            self.who.setText(f"{self.identity} - offline (ve fronte {queued})")
 
     def _build_divider(self) -> QFrame:
         divider = QFrame()

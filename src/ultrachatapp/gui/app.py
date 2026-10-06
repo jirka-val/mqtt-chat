@@ -41,6 +41,7 @@ class ChatWindow(QMainWindow):
 
         self.bridge = MqttBridge()
         self.bridge.message_received.connect(self._handle_message)
+        self.bridge.connection_changed.connect(self._handle_connection)
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
@@ -90,6 +91,7 @@ class ChatWindow(QMainWindow):
             via_agent=data.via_agent,
         )
         client.on_message_received = self._on_mqtt_message
+        client.on_connection_changed = self.bridge.connection_changed.emit
 
         try:
             client.connect()
@@ -149,6 +151,10 @@ class ChatWindow(QMainWindow):
             self.chat_view.append_message(
                 f"{sender} (soukrome) - {time_str}", msg.text, "private"
             )
+
+    def _handle_connection(self, connected: bool, queued: int) -> None:
+        if self.chat_view is not None:
+            self.chat_view.set_connection(connected, queued)
 
     def closeEvent(self, event) -> None:
         if self.client is not None:

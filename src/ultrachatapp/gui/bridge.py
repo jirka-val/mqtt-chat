@@ -6,3 +6,4 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 class MqttBridge(QObject):
     message_received = pyqtSignal(str, bytes)
+    connection_changed = pyqtSignal(bool, int)

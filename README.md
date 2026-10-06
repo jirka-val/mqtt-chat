@@ -94,11 +94,36 @@ $env:PYTHONPATH = "src"
 Test fronty: přihlas se přes agenta, zavři okno klienta, nech někoho (třeba druhého klienta napřímo)
 poslat zprávy, pak se znovu přihlas – zprávy přijdou z fronty.
 
+## Cviko 3 – offline režim na straně klienta
+
+Frontu dělá přímo klient (`MQTTClient` + `Outbox`), funguje napřímo i přes agenta.
+
+- **Fronta zpráv** – když spadne spojení, zprávy se ukládají do fronty i s časem napsání.
+  Po znovupřipojení (paho se připojuje samo každých 1–5 s) se pošlou.
+- **Seznam uživatelů** – klient si drží poslední známé stavy a každých 30 s si je nechá
+  od brokeru poslat znovu (opakovaný subscribe = broker znovu pošle retained zprávy).
+  Soukromé zprávy z fronty pro uživatele, který je zrovna offline, počkají, až se připojí.
+- **Všichni offline** – když se do 15 s nepodaří připojit, GUI dostane, že jsou všichni offline.
+  Po znovupřipojení přijdou od brokeru správné stavy.
+- V hlavičce chatu je vidět stav spojení a počet zpráv ve frontě.
+
+Test bez VPN – pusť si testovací mosquitto `mosquitto -p 1885 -v` (bez loginu, jen localhost)
+a připoj na něj napřímo dva klienty (host `localhost`, port `1885`, různé identity):
+
+1. vypni mosquitto (Ctrl+C), v jednom klientovi napiš zprávu všem a soukromou druhému
+   (v hlavičce naskočí `offline (ve fronte N)`), po 15 s jsou všichni offline
+2. zavři druhého klienta a mosquitto znovu pusť – veřejná zpráva odejde hned,
+   soukromá zůstane ve frontě
+3. spusť druhého klienta znovu – jakmile je online, soukromá zpráva mu přijde
+
+Proti školnímu serveru jde to samé vyzkoušet odpojením VPN.
+
 ## Struktura projektu
 
 ```
 src/ultrachatapp/
-    connection.py   - MQTTClient, obalka nad paho-mqtt (connect/publish/subscribe, LWT)
+    connection.py   - MQTTClient, obalka nad paho-mqtt (connect/publish/subscribe, LWT, offline rezim)
+    outbox.py        - fronta zprav napsanych offline
     topics.py        - skladani MQTT topicu podle zadani
     message.py        - format zpravy (timestamp + text)
     main.py             - vstupni bod, spousti GUI
