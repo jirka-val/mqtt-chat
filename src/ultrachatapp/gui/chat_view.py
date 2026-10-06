@@ -53,10 +53,10 @@ class ChatView(QFrame):
         return row
 
     def set_connection(self, connected: bool, queued: int) -> None:
-        if connected:
-            self.who.setText(f"{self.identity} - online")
-        else:
-            self.who.setText(f"{self.identity} - offline (ve fronte {queued})")
+        text = f"{self.identity} - {'online' if connected else 'offline'}"
+        if queued:
+            text += f" (ve fronte {queued})"
+        self.who.setText(text)
 
     def _build_divider(self) -> QFrame:
         divider = QFrame()

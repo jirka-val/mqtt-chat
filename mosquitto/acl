@@ -6,7 +6,7 @@ user VAL0475-agent
 topic readwrite #
 
 
-# pravidla pro vsechny ostatni uzivatele (pattern plati pro kazdeho)
+# pravidla pro vsechny ostatni uzivatele
 
 # zapis jen pod svou identitou - nikdo se nemuze vydavat za nekoho jineho
 pattern write /mschat/all/%u

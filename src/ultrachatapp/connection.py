@@ -61,6 +61,7 @@ class MQTTClient:
 
         self._client.on_connect = self._handle_connect
         self._client.on_disconnect = self._handle_disconnect
+        self._client.on_subscribe = self._handle_subscribe
         self._client.on_message = self._handle_message
         self._client.on_publish = self._handle_publish
 
@@ -135,6 +136,12 @@ class MQTTClient:
         # stare stavy zahodime, server nam po subscribe hned posle aktualni (retained)
         # soukrome zpravy z fronty tak odejdou az podle opravdoveho stavu prijemce
         self.statuses.clear()
+        self._notify_connection()
+
+    def _handle_subscribe(self, client, userdata, mid, reason_codes, properties=None):
+        # frontu posilame az po potvrzeni subscribe, ne v _handle_connect - paho po connect
+        # jeste znovu posle zpravy, ktere mu zustaly nepotvrzene pred vypadkem,
+        # a ty musi odejit driv nez fronta, jinak by se prehodilo poradi
         self._flush_outbox()
 
     def _handle_disconnect(self, client, userdata, flags, reason_code, properties=None):
@@ -154,7 +161,7 @@ class MQTTClient:
     def _handle_message(self, client, userdata, msg):
         print(f"[DEBUG] {self.identity}: prijato na '{msg.topic}' -> {msg.payload!r}")
 
-        # z /inbox/ja/mschat/all/pepa udelame zpet /mschat/all/pepa,
+        # z /inbox/ja/mschat/all/pepa udelame zpet /mschat/all/pepa
         # GUI pak nepozna rozdil, jestli jedeme pres agenta nebo primo
         topic = msg.topic
         if self.via_agent:
@@ -188,9 +195,10 @@ class MQTTClient:
         self._send(topics.publish_to_private(recipient, self.identity), payload, recipient)
 
     def _send(self, topic: str, payload: bytes, recipient: str = "") -> None:
-        if not self.connected:
+        # soukroma zprava pro offline uzivatele pocka ve fronte, az se pripoji
+        if not self.connected or (recipient and not self._is_online(recipient)):
             self.outbox.add(topic, payload, recipient)
-            print(f"[DEBUG] {self.identity}: offline, '{topic}' do fronty (ve fronte {len(self.outbox)})")
+            print(f"[DEBUG] {self.identity}: '{topic}' do fronty (ve fronte {len(self.outbox)})")
             self._notify_connection()
             return
 
@@ -200,7 +208,7 @@ class MQTTClient:
 
 
 
-    #               offline rezim (cviko 3)
+    #               offline rezim
 
     def _flush_outbox(self) -> None:
         if not self.connected:

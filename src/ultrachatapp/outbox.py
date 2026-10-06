@@ -1,5 +1,5 @@
 """
-    Outbox - fronta zprav napsanych v offline rezimu (cviko 3)
+    Outbox - fronta zprav napsanych v offline rezimu
 
     Payload se vytvori uz pri napsani zpravy, takze v nem zustane
     puvodni timestamp a prijemce uvidi cas, kdy byla zprava napsana
