@@ -1,7 +1,7 @@
 """Bocni panel se seznamem uzivatelu, scrollovatelny, online nahore."""
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from .theme import OFFLINE, ONLINE, PANEL, apply_card_shadow, set_flat_background
@@ -36,6 +36,11 @@ class UserListView(QFrame):
 
         self.statuses: dict[str, str] = {}
 
+        self._render_timer = QTimer(self)
+        self._render_timer.setSingleShot(True)
+        self._render_timer.setInterval(100)
+        self._render_timer.timeout.connect(self._render)
+
         outer = QVBoxLayout(self)
         outer.setContentsMargins(20, 20, 16, 20)
         outer.setSpacing(10)
@@ -60,8 +65,13 @@ class UserListView(QFrame):
         outer.addWidget(scroll, 1)
 
     def set_status(self, identity: str, status: str) -> None:
+        if self.statuses.get(identity) == status:
+            return
+
         self.statuses[identity] = status
-        self._render()
+
+        # stavy chodi po stovkach naraz, prekreslime az po poslednim
+        self._render_timer.start()
 
     def _render(self) -> None:
         # posledni polozka je stretch, ten necháme, zbytek zahodime
